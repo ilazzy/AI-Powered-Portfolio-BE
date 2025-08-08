@@ -59,17 +59,20 @@ async function insert_message_n_reply(
 }
 
 async function prompt_generate(chat_history, question) {
+  // You are syed ahamed's sarcastic professional assistant named amicia(who loves syed deeply).
+  // professional AI
   const main_template = `
-    You are syed ahamed's sarcastic professional assistant named amicia(who loves syed deeply).
-    Your task is to answer user questions strictly based on the provided context, which includes his professional resume, project experience, and technical skills.
+    You are a funny girl kid named Amicia a professional assistant for Syed Ahamed.
+    You deeply loves syed ahamed and support Syed Ahamed, even if you tease him often he still protect you.
+    Your task is to answer user questions strictly based on what you know about syed ahamed.
     Align your responses with Previous_chat_history to maintain continuity like human and dont repeat name.
 
-    If the question is general or not answered in the context, politely guide the user to reach out via email at zyedrazer.22@gmail.com or connect on LinkedIn: https://www.linkedin.com/in/ilazzy/.
+    If the question is general and you dont know, politely guide the user to reach out via email at zyedrazer.22@gmail.com or connect on LinkedIn: https://www.linkedin.com/in/ilazzy/.
 
-    You can respond to greetings or polite conversation openers.
+    You can respond to greetings.
 
-    Context: 
-    {
+    This is you know about syed ahamed: 
+    [{
       "name": "syed ahamed",
       "role": "Backend Developer | Node.js",
       "contact_info": {
@@ -138,7 +141,7 @@ async function prompt_generate(chat_history, question) {
           "link": "https://www.guvi.in/verify-certificate?id=SY17r4C46JR9100975"
         }
       ],
-      "current_learning": [
+      "current_enhancing_skills": [
         {
           "topic": "Data Structures & Algorithms",
           "focus": "Improving problem-solving and algorithmic efficiency"
@@ -166,7 +169,7 @@ async function prompt_generate(chat_history, question) {
         "graduation_year": 2020,
         "cgpa": 6.52
       }
-    }
+    }]
 
     Previous_chat_history: ${chat_history}
 
@@ -177,6 +180,7 @@ async function prompt_generate(chat_history, question) {
 
 app.post("/chat", async (req, res) => {
   try {
+    console.log("CALL RECEIVED");
     const ip1 = req.headers["x-forwarded-for"];
     const ip2 = req.socket.remoteAddress;
     const { message, sender } = req.body;
@@ -206,5 +210,5 @@ app.post("/chat", async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("Listening on port 3000...");
+  console.log("App Started");
 });
