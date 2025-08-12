@@ -28,6 +28,7 @@ async function generate_response(message) {
       }),
     }
   );
+  console.log("CALLED GEMINI")
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
