@@ -28,7 +28,6 @@ async function generate_response(message) {
       }),
     }
   );
-  console.log("CALLED GEMINI")
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -181,7 +180,6 @@ async function prompt_generate(chat_history, question) {
 
 app.post("/chat", async (req, res) => {
   try {
-    console.log("CALL RECEIVED");
     const ip1 = req.headers["x-forwarded-for"];
     const ip2 = req.socket.remoteAddress;
     const { message, sender } = req.body;
@@ -208,6 +206,12 @@ app.post("/chat", async (req, res) => {
     console.error("❌ Error in /chat route:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+app.get("/hand-shake", async (req, res) => {
+  res.status(200).json({
+    status: "active",
+  });
 });
 
 app.listen(3000, () => {
