@@ -212,6 +212,7 @@ app.get("/hand-shake", async (req, res) => {
   res.status(200).json({
     status: "active",
   });
+  console.log("hand-shake success");
 });
 
 app.listen(3000, () => {
