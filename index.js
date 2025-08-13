@@ -5,7 +5,10 @@ const app = express();
 const cors = require("cors");
 app.use(cors());
 app.use(express.json());
-
+import { createClient } from "redis";
+const client = createClient({
+  url: "redis://red-d2e7g3ndiees73dbolc0:6379",
+});
 async function generate_response(message) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_LLM_MODEL}:generateContent`,
@@ -59,8 +62,6 @@ async function insert_message_n_reply(
 }
 
 async function prompt_generate(chat_history, question) {
-  // You are syed ahamed's sarcastic professional assistant named amicia(who loves syed deeply).
-  // professional AI
   const main_template = `
     You are a funny girl kid named Amicia a professional assistant for Syed Ahamed.
     You deeply loves syed ahamed and support Syed Ahamed, even if you tease him often he still protect you.
@@ -188,6 +189,8 @@ app.post("/chat", async (req, res) => {
       return res.status(400).json({ error: "Message and sender are required" });
     }
 
+    const chat_history = []; // Immplement redis, insert message and response
+
     const prompt = await prompt_generate([], message);
 
     const response = await generate_response(prompt);
@@ -209,10 +212,20 @@ app.post("/chat", async (req, res) => {
 });
 
 app.get("/hand-shake", async (req, res) => {
+  const hi = await client.connect();
+
+  const obj = { data: "Hello Redis!" };
+  await client.set("mykey", JSON.stringify(obj));
+
+  const value = await client.get("mykey");
+  const parsedValue = JSON.parse(value);
+
+  await client.quit();
+
   res.status(200).json({
-    status: "active",
+    status: hi,
+    parsedValue: parsedValue,
   });
-  console.log("hand-shake success");
 });
 
 app.listen(3000, () => {
