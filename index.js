@@ -1,11 +1,14 @@
-const connectDB = require("./db/db-connect");
-const express = require("express");
-require("dotenv").config();
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import { createClient } from "redis";
+import connectDB from "./db/db-connect.js";
+
+dotenv.config();
+
 const app = express();
-const cors = require("cors");
 app.use(cors());
 app.use(express.json());
-import { createClient } from "redis";
 const client = createClient({
   url: "redis://red-d2e7g3ndiees73dbolc0:6379",
 });
