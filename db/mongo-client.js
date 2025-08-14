@@ -11,9 +11,11 @@ const connect = async function connectDB() {
   if (!db) {
     await client.connect();
     db = client.db("portfolio");
-    console.log("✅ MongoDB connected");
+    console.log("✅ Connected to MongoDB");
   }
   return db;
 };
 
+
+export { client };
 export default connect;

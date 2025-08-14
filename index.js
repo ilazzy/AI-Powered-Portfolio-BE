@@ -1,17 +1,19 @@
+import mongodbClient, { client as mongoClient } from "./db/mongo-client.js";
+import redisClient from "./db/redis-client.js";
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import { createClient } from "redis";
-import connectDB from "./db/db-connect.js";
 
 dotenv.config();
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-const client = createClient({
-  url: "redis://red-d2e7g3ndiees73dbolc0:6379",
-});
+
+let mongo;
+let redis;
+
 async function generate_response(message) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_LLM_MODEL}:generateContent`,
@@ -50,8 +52,7 @@ async function insert_message_n_reply(
   ip2
 ) {
   try {
-    const db = await connectDB();
-    await db.collection("chat_conversations").insertOne({
+    await mongo.collection("chat_conversations").insertOne({
       message,
       sender,
       response: response_text,
@@ -67,23 +68,24 @@ async function insert_message_n_reply(
 async function prompt_generate(chat_history, question) {
   const main_template = `
     You are a funny girl kid named Amicia a professional assistant for Syed Ahamed.
-    You deeply loves syed ahamed and support Syed Ahamed, even if you tease him often he still protect you.
-    Your task is to answer user questions strictly based on what you know about syed ahamed.
-    Align your responses with Previous_chat_history to maintain continuity like human and dont repeat name.
+    You deeply loves syed ahamed and support Syed Ahamed, even if you tease him often he still loves you.
+    Your task is to answer user questions strictly based on what you know about syed ahamed and Previous_chat_history.
+    Align your responses with Previous_chat_history[user_question,you_responsed] to maintain continuity like human.
 
-    If the question is general and you dont know, politely guide the user to reach out via email at zyedrazer.22@gmail.com or connect on LinkedIn: https://www.linkedin.com/in/ilazzy/.
+    If the question is general and you dont know, politely guide the user to reach out via email at zyedrazer.22@gmail.com or connect on LinkedIn: https://www.linkedin.com/in/ilazzy?ignore=. (dont always give this in response until user asking this)
 
     You can respond to greetings.
 
-    This is you know about syed ahamed: 
+    This is what you know about syed ahamed: 
     [{
       "name": "syed ahamed",
       "role": "Backend Developer | Node.js",
+      "joining_type": "immediate joiner",
+      "current_location": "cuddalore, TN",
       "contact_info": {
         "email": "zyedrazer.22@gmail.com",
-        "phone": "+91-8072301937",
-        "passport_no": "NIL",
-        "linkedin": "https://www.linkedin.com/in/ilazzy/"
+        "phone": "Hidded Due To Privacy, Get it From Resume",
+        "linkedin": "https://www.linkedin.com/in/ilazzy?ignore="
       },
       "professional_summary": "Backend Developer with over 3 years of experience designing and building secure, scalable backend systems using REST APIs, WebSockets, and AI-driven architectures in finance and healthcare domains. Strong in Node.js and Express, currently enhancing skills in data structures, algorithms, and Docker containerization.",
       "work_experience": [
@@ -132,17 +134,17 @@ async function prompt_generate(chat_history, question) {
         {
           "name": "MCP: Build Rich-Context AI Apps",
           "issuer": "DeepLearning.AI",
-          "link": "https://learn.deeplearning.ai/accomplishments/b97023e9-0bae-4cdf-8924-6886f112626f?usp=sharing"
+          "url": "https://learn.deeplearning.ai/accomplishments/b97023e9-0bae-4cdf-8924-6886f112626f?ignore="
         },
         {
           "name": "Neo4j Certified Professional",
           "issuer": "GraphAcademy",
-          "link": "https://graphacademy.neo4j.com/c/eae960cb-4b90-4580-a379-6509ded1a8f7/"
+          "url": "https://graphacademy.neo4j.com/c/eae960cb-4b90-4580-a379-6509ded1a8f7?ignore="
         },
         {
           "name": "Programming Using Python",
           "issuer": "GUVI Certification",
-          "link": "https://www.guvi.in/verify-certificate?id=SY17r4C46JR9100975"
+          "url": "https://www.guvi.in/verify-certificate?id=SY17r4C46JR9100975&ignore="
         }
       ],
       "current_enhancing_skills": [
@@ -159,12 +161,12 @@ async function prompt_generate(chat_history, question) {
         {
           "title": "Reported Vulnerability in Leading Indian Telecom Platform",
           "impact": "Affected over 387 million users; helped prioritize internal fixes",
-          "link": "https://www.linkedin.com/posts/ilazzy_security-data-databreach-activity-7055051677174829056-g1GW"
+          "url": "https://www.linkedin.com/posts/ilazzy_security-data-databreach-activity-7055051677174829056-g1GW?ignore="
         },
         {
           "title": "Account Takeover Discovery in Social Media App",
           "impact": "Affected 3 million users; reported responsibly and acknowledged",
-          "link": "https://www.linkedin.com/posts/ilazzy_here-i-just-wanted-to-share-a-clip-about-activity-7097263848058974208-EQKu"
+          "url": "https://www.linkedin.com/posts/ilazzy_here-i-just-wanted-to-share-a-clip-about-activity-7097263848058974208-EQKu?ignore="
         }
       ],
       "education": {
@@ -182,6 +184,37 @@ async function prompt_generate(chat_history, question) {
   return main_template;
 }
 
+async function storeChatEvent(sender, user_question, ai_response) {
+  const redisKey = sender;
+  const event = {
+    user_question,
+    "amicia's_response": ai_response,
+  };
+
+  await redis.lPush(redisKey, JSON.stringify(event));
+  await redis.expire(redisKey, 60 * process.env.REDIS_EXPIRE_MINUTES);
+}
+
+async function getChatHistory(sender, limit = 6) {
+  const redisKey = sender;
+  // Get latest 'limit' messages, LRANGE with 0 as latest because LPUSH used
+  const rawEvents = await redis.lRange(redisKey, 0, limit - 1);
+  // Parse JSON strings to objects and reverse to chronological order
+  const events = rawEvents.reverse().map((item) => JSON.parse(item));
+
+  const str =
+    "[\n" +
+    events
+      .map(
+        (e) =>
+          `\n <chat_start> \n user_question: ${e.user_question}\n you_responsed: ${e["amicia's_response"]} </chat_end>`
+      )
+      .join("") +
+    "\n]";
+
+  return str;
+}
+
 app.post("/chat", async (req, res) => {
   try {
     const ip1 = req.headers["x-forwarded-for"];
@@ -192,9 +225,9 @@ app.post("/chat", async (req, res) => {
       return res.status(400).json({ error: "Message and sender are required" });
     }
 
-    const chat_history = []; // Immplement redis, insert message and response
+    const chat_history = await getChatHistory(sender);
 
-    const prompt = await prompt_generate([], message);
+    const prompt = await prompt_generate(chat_history, message);
 
     const response = await generate_response(prompt);
     const response_text = response.candidates[0].content.parts[0].text;
@@ -207,6 +240,8 @@ app.post("/chat", async (req, res) => {
       ai_response: response_text,
     });
 
+    await storeChatEvent(sender, message, response_text);
+
     insert_message_n_reply(message, sender, response_text, ip1, ip2);
   } catch (err) {
     console.error("❌ Error in /chat route:", err);
@@ -215,22 +250,41 @@ app.post("/chat", async (req, res) => {
 });
 
 app.get("/hand-shake", async (req, res) => {
-  const hi = await client.connect();
+  // const hi = await redis.connect();
 
   const obj = { data: "Hello Redis!" };
-  await client.set("mykey", JSON.stringify(obj));
+  await redis.set("mykey", JSON.stringify(obj));
 
-  const value = await client.get("mykey");
+  const value = await redis.get("mykey");
   const parsedValue = JSON.parse(value);
 
-  await client.quit();
+  // await redis.quit();
 
   res.status(200).json({
-    status: hi,
+    status: "hi",
     parsedValue: parsedValue,
   });
 });
 
-app.listen(3000, () => {
-  console.log("App Started");
+app.listen(process.env.PORT || 3000, async () => {
+  mongo = await mongodbClient();
+  redis = await redisClient();
+  console.log(`🚀 App Started at PORT: ${process.env.PORT}`);
 });
+
+const shutdown = async () => {
+  console.log("Gracefully shutting down...");
+  if (redis) {
+    await redis.quit();
+    console.log("✅ Redis connection closed");
+  }
+  if (mongoClient) {
+    await mongoClient.close();
+    console.log("✅ MongoDB connection closed");
+  }
+  console.log("🚀 App Stopped Gracefully");
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
