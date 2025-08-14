@@ -1,0 +1,62 @@
+title Amicia – Full Stack Conversational AI System Architecture
+
+// Groups and Nodes
+
+Frontend [icon: monitor] {
+  React Terminal UI [icon: react, label: "Terminal UI"]
+  Professional Links [icon: link-2]
+  "Session/User ID Generator" [icon: user, label: "User ID"]
+  ChatHistory State [icon: message-square, label: "chatHistory"]
+  StreamingOutput State [icon: type, label: "streamingOutput"]
+}
+
+Backend [icon: nodejs] {
+  Express API [icon: nodejs, label: "Express API"]
+  Prompt Logic [icon: code, label: "Prompt Builder"]
+  Redis Handler [icon: redis, label: "Redis Handler"]
+  Data Router [icon: shuffle, label: "Data Router"]
+}
+
+
+
+Google Gemini API [icon: google, label: "Gemini LLM API"]
+
+Hosting [icon: cloud] {
+  Frontend Host [icon: cloud, label: "Frontend Host"]
+  Backend Host [icon: cloud, label: "Backend Host"]
+  Redis Host [icon: cloud, label: "Redis Server"]
+}
+
+// Connections
+
+// Hosting
+Frontend > Frontend Host
+Backend > Backend Host
+Redis Handler > Redis Host
+Redis Handler > Prompt Logic: Chat History
+// User flow
+React Terminal UI > Express API: POST /chat
+
+// Backend orchestration
+Express API > Prompt Logic: User Question
+Express API > Redis Handler: manage session
+
+// AI interaction
+Prompt Logic > Google Gemini API: send prompt
+
+// Persistence
+
+// Backend response
+
+// UI state updates
+React Terminal UI > ChatHistory State: update chatHistory
+React Terminal UI > StreamingOutput State: update streamingOutput
+
+// Professional links (self-marketing)
+React Terminal UI > Professional Links: show links
+
+// Session/user ID generation
+React Terminal UI > "Session/User ID Generator": generate sender ID
+"Session/User ID Generator" > Redis Handler: provide sender ID
+Prompt Logic < Google Gemini API: AI response
+React Terminal UI < Express API: JSON response
