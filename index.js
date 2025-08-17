@@ -220,12 +220,13 @@ async function getChatHistory(sender, limit = 6) {
 
 const rateLimiter = inMemorySlidingRateLimiter({
   windowSeconds: process.env.RATELIMIT_WINDOW_SIZE,
-  maxRequests: process.env.REQUESTS_WINDOW,
+  maxRequests: process.env.REQUESTS_PER_WINDOW,
 });
 
 app.post("/chat", rateLimiter, async (req, res) => {
   try {
     const xForwardedForIps = JSON.parse(req.headers["x-forwarded-for"]);
+    console.log(req.headers["x-forwarded-for"]);
     const userIp = xForwardedForIps.split(", ")[0];
     const { message, sender } = req.body;
 
