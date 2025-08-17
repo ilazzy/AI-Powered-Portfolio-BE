@@ -1,9 +1,9 @@
 import mongodbClient, { client as mongoClient } from "./db/mongo-client.js";
+import { inMemorySlidingRateLimiter } from "./middleware/rate-limiter.js";
 import redisClient from "./db/redis-client.js";
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-
 dotenv.config();
 
 const app = express();
@@ -44,20 +44,13 @@ async function generate_response(message) {
   return response.json();
 }
 
-async function insert_message_n_reply(
-  message,
-  sender,
-  response_text,
-  ip1,
-  ip2
-) {
+async function insert_message_n_reply(message, sender, response_text, userIp) {
   try {
     await mongo.collection("chat_conversations").insertOne({
       message,
       sender,
       response: response_text,
-      "x-forwarded": ip1,
-      "socket-ip": ip2,
+      "x-forwarded-for-ip": userIp,
       timestamp: new Date(),
     });
   } catch (dbError) {
@@ -217,10 +210,23 @@ async function getChatHistory(sender, limit = 6) {
   return str;
 }
 
-app.post("/chat", async (req, res) => {
+// app.use(
+//   "/chat",
+//   inMemorySlidingRateLimiter({
+//     windowSeconds: 60,
+//     maxRequests: 5,
+//   })
+// );
+
+const rateLimiter = inMemorySlidingRateLimiter({
+  windowSeconds: process.env.RATELIMIT_WINDOW_SIZE,
+  maxRequests: process.env.REQUESTS_WINDOW,
+});
+
+app.post("/chat", rateLimiter, async (req, res) => {
   try {
-    const ip1 = req.headers["x-forwarded-for"];
-    const ip2 = req.socket.remoteAddress;
+    const xForwardedForIps = JSON.parse(req.headers["x-forwarded-for"]);
+    const userIp = xForwardedForIps.split(", ")[0];
     const { message, sender } = req.body;
 
     if (!message || !sender) {
@@ -244,7 +250,7 @@ app.post("/chat", async (req, res) => {
 
     await storeChatEvent(sender, message, response_text);
 
-    insert_message_n_reply(message, sender, response_text, ip1, ip2);
+    insert_message_n_reply(message, sender, response_text, userIp);
   } catch (err) {
     console.error("❌ Error in /chat route:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -252,19 +258,8 @@ app.post("/chat", async (req, res) => {
 });
 
 app.get("/hand-shake", async (req, res) => {
-  // const hi = await redis.connect();
-
-  const obj = { data: "Hello Redis!" };
-  await redis.set("mykey", JSON.stringify(obj));
-
-  const value = await redis.get("mykey");
-  const parsedValue = JSON.parse(value);
-
-  // await redis.quit();
-
   res.status(200).json({
-    status: "hi",
-    parsedValue: parsedValue,
+    status: 1,
   });
 });
 
