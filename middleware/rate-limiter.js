@@ -5,7 +5,7 @@ export function inMemorySlidingRateLimiter(options = {}) {
   const maxRequests = options.maxRequests || 5;
 
   return (req, res, next) => {
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    const ip = req.headers["x-forwarded-for"].split(", ")[0];
     const now = Date.now();
     const windowStart = now - windowSeconds * 1000;
 
