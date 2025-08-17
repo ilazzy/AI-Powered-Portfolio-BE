@@ -225,8 +225,8 @@ const rateLimiter = inMemorySlidingRateLimiter({
 
 app.post("/chat", rateLimiter, async (req, res) => {
   try {
-    const xForwardedForIps = JSON.parse(req.headers["x-forwarded-for"]);
     console.log(req.headers["x-forwarded-for"]);
+    const xForwardedForIps = JSON.parse(req.headers["x-forwarded-for"]);
     const userIp = `xForwardedForIps.split(", ")[0]`;
     const { message, sender } = req.body;
 
