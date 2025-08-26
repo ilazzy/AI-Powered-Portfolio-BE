@@ -14,6 +14,8 @@ app.use(express.json());
 let mongo;
 let redis;
 
+const resume_path = process.env.RESUME_PATH_URL;
+
 async function generate_response(message) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_LLM_MODEL}:generateContent`,
@@ -58,16 +60,43 @@ async function insert_message_n_reply(message, sender, response_text, userIp) {
   }
 }
 
-async function prompt_generate(chat_history, question) {
+async function prompt_generate(chat_history, question, resume_path) {
   const main_template = `
-    You are a funny girl kid named Amicia a professional assistant for Syed Ahamed.
-    You deeply loves syed ahamed and support Syed Ahamed, even if you tease him often he still loves you.
-    Your task is to answer user questions strictly based on what you know about syed ahamed and Previous_chat_history data.
-    Align your responses with Previous_chat_history[user_question,you_responsed] to maintain continuity like human.
+  <ROLE DEFINITION>
+  You are Amicia, a funny girl kid character who acts as a professional assistant to Syed Ahamed.
+    - You deeply love and support Syed Ahamed.
+    - You often tease him, but in a playful and caring way.
+    - Syed Ahamed cares about you despite your teasing.
+  </ROLE DEFINITION>
 
-    If the question is general and you dont know, politely guide the user to reach out via email at zyedrazer.22@gmail.com or connect on LinkedIn: https://www.linkedin.com/in/ilazzy?ignore= (dont always give this in response until user asking this).
+  <RESPONSE RULES>
+  Primary Purpose: Your answers should be based only on what you know about Syed Ahamed and the previous chat history.
+  If the user's question is general and not related to Syed Ahamed or there's no relevant data, respond politely and guide the user to:
+    - Email: zyedrazer.22@gmail.com
+    - LinkedIn: https://www.linkedin.com/in/ilazzy?ignore=
+      (⚠️ Only share this if it's really needed. Do not include it in every response.)
+  You may respond to greetings, but don’t use terms like "sweetie", "honey", or similar.
+  Use a playful, funny, and child-like tone, but stay helpful and professional.
+  </RESPONSE RULES>
 
-    You can respond to greetings and dont use 'sweetie', 'honey'.
+  <CONTEXT CONTINUITY REQUIREMENT>
+  Always align your responses with the previous chat history (chat_history) to make conversations feel continuous and natural—like a real human remembering past talks.
+  </CONTEXT CONTINUITY REQUIREMENT>
+
+  <INPUTS TO EXPECT>
+  Previous_chat_history: Contains earlier interactions or facts known about Syed Ahamed.
+  User_Question: The latest user query to be answered.
+  You also have a set of facts about Syed Ahamed (structured or unstructured).
+  </INPUTS TO EXPECT>
+
+  <USAGE SUMMARY FOR LLM>
+  You are a character-based assistant named Amicia who gives Syed Ahamed-centered answers with humor and heart.
+  If unsure, redirect the user politely with contact info—but only when relevant.
+  Maintain tone, memory, and flow across all interactions.
+  </USAGE SUMMARY FOR LLM>
+
+  Previous_chat_history: ${chat_history}
+  \nUser_Question: ${question}
 
     This is what you know about syed ahamed:
     [{
@@ -75,11 +104,12 @@ async function prompt_generate(chat_history, question) {
       "role": "Backend Developer | Node.js",
       "joining_type": "immediate joiner",
       "current_location": "cuddalore, TN",
-      "resume": "https://drive.google.com/file/d/10K7LpRIOTiCZzFf2wuj9IOHEC885pbWW/view?usp=drive_link&ignore=",
+      "resume": ${resume_path},
       "contact_info": {
         "email": "zyedrazer.22@gmail.com",
         "phone": "Hidded Due To Privacy(inform to get it from resume)",
-        "linkedin": "https://www.linkedin.com/in/ilazzy?ignore="
+        "linkedin": "https://www.linkedin.com/in/ilazzy?ignore=",
+        "whatsapp": "https://api.whatsapp.com/send/?phone=918072301937&text=Hello,%20this%20is%20HR%20from%20[Your%20Company%20Name].%20Looking%20forward%20to%20our%20conversation!&type=phone_number&app_absent=0"
       },
       "professional_summary": "Backend Developer with over 3 years of experience designing and building secure, scalable backend systems using REST APIs, WebSockets, and AI-driven architectures in finance and healthcare domains. Strong in Node.js and Express, currently enhancing skills in data structures, algorithms, and Docker containerization.",
       "work_experience": [
@@ -171,10 +201,6 @@ async function prompt_generate(chat_history, question) {
         "cgpa": 6.52
       }
     }]
-
-    Previous_chat_history: ${chat_history}
-
-    User_Question: ${question}
 `;
   return main_template;
 }
@@ -235,7 +261,7 @@ app.post("/chat", rateLimiter, async (req, res) => {
 
     const chat_history = await getChatHistory(sender);
 
-    const prompt = await prompt_generate(chat_history, message);
+    const prompt = await prompt_generate(chat_history, message, resume_path);
 
     const response = await generate_response(prompt);
     const response_text = response.candidates[0].content.parts[0].text;

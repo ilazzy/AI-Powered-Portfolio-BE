@@ -29,6 +29,7 @@ export function inMemorySlidingRateLimiter(options = {}) {
         .set("Retry-After", retryIn)
         .json({
           error: `Rate limit exceeded. Try again in ${retryIn} seconds.`,
+          retryIn: retryIn,
         });
     }
 
