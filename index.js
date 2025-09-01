@@ -46,6 +46,185 @@ async function generate_response(message) {
   return response.json();
 }
 
+function helperExtractPredictionQuestionArray(text) {
+  // Use regex to find the first [...] substring that looks like an array
+  const arrayMatch = text.match(/\[(?:[^\[\]]|"(?:\\.|[^"\\])*")*\]/);
+
+  if (!arrayMatch) {
+    // No array found
+    return null;
+  }
+
+  const arrayStr = arrayMatch[0];
+
+  try {
+    // Try to parse the found substring as JSON
+    const parsed = JSON.parse(arrayStr);
+
+    // Verify that it's an array of strings
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === "string")
+    ) {
+      return parsed;
+    } else {
+      // Parsed JSON is not an array of strings
+      return [];
+    }
+  } catch (err) {
+    // Parsing failed (malformed JSON)
+    return [];
+  }
+}
+
+async function generate_prediction(query_history, last_query) {
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: process.env.GROQ_LLM_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: `
+              Given a list of previous queries (query_history), the most recent query (last_query), and a data object (PROFILE_DATA), generate exactly three shortest follow-up questions based on the PROFILE_DATA and related to the last_query. Only return a JSON array of three strings—no explanations or additional text.
+
+              PROFILE_DATA = [{
+                    "name": "syed ahamed",
+                    "role": "Backend Developer | Node.js",
+                    "joining_type": "immediate joiner",
+                    "current_location": "cuddalore, TN",
+                    "resume": /resume.pdf,
+                    "contact_info": {
+                      "email": "zyedrazer.22@gmail.com",
+                      "phone": "Hidded Due To Privacy(inform to get it from resume)",
+                      "linkedin": "https://www.linkedin.com/in/ilazzy?ignore=",
+                      "whatsapp": "https://api.whatsapp.com/send/?phone=918072301937&text=Hello,%20this%20is%20HR%20from%20[Your%20Company%20Name].%20Looking%20forward%20to%20our%20conversation!&type=phone_number&app_absent=0"
+                    },
+                    "professional_summary": "Backend Developer with over 3 years of experience designing and building secure, scalable backend systems using REST APIs, WebSockets, and AI-driven architectures in finance and healthcare domains. Strong in Node.js and Express, currently enhancing skills in data structures, algorithms, and Docker containerization.",
+                    "work_experience": [
+                      {
+                        "company": "ILM UX Pvt. Ltd.",
+                        "role": "Backend Developer",
+                        "duration": "July 2022 – June 2025",
+                        "projects": [
+                          {
+                            "name": "AI Voice-Based Agent with SQL-RAG Integration",
+                            "description": "Developed a voice-enabled AI agent capable of engaging users with contextual conversations based on PDF content using Retrieval-Augmented Generation (RAG). Leveraged SQL for data management and dynamic chart creation for wealth management."
+                          },
+                          {
+                            "name": "Financial & Wealth Management System",
+                            "description": "Used Cheerio to scrape and process over 150,000 records from web UIs to aid customer acquisition. Enhanced Neo4j performance by 90%, reducing query times from 20 seconds to 2 seconds for exporting nested family trees."
+                          },
+                          {
+                            "name": "Multi-Lingual Healthcare Management System",
+                            "description": "Built a secure healthcare platform with multi-language support and role-based access control (RBAC). Integrated comprehensive patient assessment datasets in 5+ languages."
+                          }
+                        ]
+                      }
+                    ],
+                    "skills": {
+                      "backend_technologies": ["Node.js", "Express.js", "NestJS"],
+                      "programming_languages": ["JavaScript", "TypeScript", "Python"],
+                      "databases": ["MySQL", "MongoDB", "Neo4j"],
+                      "tools_testing": ["Burp Suite", "Postman", "Jest", "Git", "ORMs"],
+                      "security": ["JWT Authentication", "RBAC Authorization"]
+                    },
+                    "explored_applied_skills": {
+                      "in_memory": ["Redis"],
+                      "ai": ["Domain-Specific Chatbots", "RAG with SQL", "Generative AI", "MCP Server"],
+                      "ai_frameworks": ["Langchain", "Livekit"],
+                      "other_skills": ["Web Scraping", "WebSockets", "API Penetration Testing"]
+                    },
+                    "roles_responsibilities": [
+                      "Design and maintain scalable APIs",
+                      "Optimize backend algorithms for performance and efficiency",
+                      "Conduct comprehensive unit testing for code reliability",
+                      "Write and manage API documentation",
+                      "Perform secure code reviews",
+                      "Conduct API penetration testing for vulnerability assessment",
+                      "Collaborate with frontend teams to ensure system cohesion"
+                    ],
+                    "certifications": [
+                      {
+                        "name": "MCP: Build Rich-Context AI Apps",
+                        "issuer": "DeepLearning.AI",
+                        "url": "https://learn.deeplearning.ai/accomplishments/b97023e9-0bae-4cdf-8924-6886f112626f?ignore="
+                      },
+                      {
+                        "name": "Neo4j Certified Professional",
+                        "issuer": "GraphAcademy",
+                        "url": "https://graphacademy.neo4j.com/c/eae960cb-4b90-4580-a379-6509ded1a8f7?ignore="
+                      },
+                      {
+                        "name": "Programming Using Python",
+                        "issuer": "GUVI Certification",
+                        "url": "https://www.guvi.in/verify-certificate?id=SY17r4C46JR9100975&ignore="
+                      }
+                    ],
+                    "current_enhancing_skills": [
+                      {
+                        "topic": "Data Structures & Algorithms",
+                        "focus": "Improving problem-solving and algorithmic efficiency"
+                      },
+                      {
+                        "topic": "Docker",
+                        "focus": "Learning containerization basics for development"
+                      }
+                    ],
+                    "achievements": [
+                      {
+                        "title": "Reported Vulnerability in Leading Indian Telecom Platform",
+                        "impact": "Affected over 387 million users; helped prioritize internal fixes",
+                        "url": "https://www.linkedin.com/posts/ilazzy_security-data-databreach-activity-7055051677174829056-g1GW?ignore="
+                      },
+                      {
+                        "title": "Account Takeover Discovery in Social Media App",
+                        "impact": "Affected 3 million users; reported responsibly and acknowledged",
+                        "url": "https://www.linkedin.com/posts/ilazzy_here-i-just-wanted-to-share-a-clip-about-activity-7097263848058974208-EQKu?ignore="
+                      }
+                    ],
+                    "education": {
+                      "degree": "Bachelor of Computer Applications (BCA)",
+                      "university": "Thiruvalluvar University",
+                      "graduation_year": 2020,
+                      "cgpa": 6.52
+                    }
+                  }]
+
+              Output Example: ["question 1", "question 2", "question 3"]`,
+          },
+        ],
+        temperature: 1,
+        max_tokens: 8192,
+        top_p: 1,
+        stream: false,
+        reasoning_effort: "medium",
+        stop: null,
+      }),
+    }
+  );
+
+  if (!response.ok) [];
+
+  const data = await response.json();
+
+  const content = data.choices?.[0]?.message?.content;
+
+  const prediction_array = helperExtractPredictionQuestionArray(content);
+
+  if (prediction_array.length !== 0) {
+    return prediction_array;
+  } else {
+    [];
+  }
+}
+
 async function insert_message_n_reply(message, sender, response_text, userIp) {
   try {
     await mongo.collection("chat_conversations").insertOne({
@@ -281,6 +460,10 @@ app.post("/chat", rateLimiter, async (req, res) => {
     console.error("❌ Error in /chat route:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+app.post("/prediction", async (req, res) => {
+  const prediction = await generate_prediction("", "");
 });
 
 app.get("/hand-shake", async (req, res) => {
