@@ -8,13 +8,7 @@ dotenv.config();
 
 const app = express();
 
-app.use(
-  cors({
-    origin: "https://syed-ahamed-portfolio-fe.onrender.com",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-  })
-);
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 let mongo;
