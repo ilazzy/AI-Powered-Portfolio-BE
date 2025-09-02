@@ -289,8 +289,17 @@ app.get("/hand-shake", async (req, res) => {
   });
 });
 
-app.get("/user-list-secret-pw", async (req, res) => {
+app.get("/user-list-secret", async (req, res) => {
   try {
+    const userPasscode = req.query.passcode;
+    const correctPasscode = process.env.PASSCODE_FOR_USER_LIST;
+
+    // Check if the passcode is missing or incorrect
+    if (!userPasscode || userPasscode !== correctPasscode) {
+      // Return a 401 Unauthorized status with a JSON message
+      return res.status(401).json({ error: "Unauthorized access" });
+    }
+
     const page = parseInt(req.query.page) || 1; // Default to page 1
     const limit = parseInt(req.query.limit) || 15; // Default to 10 senders per page
     const skip = (page - 1) * limit;
