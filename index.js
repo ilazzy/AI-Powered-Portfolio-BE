@@ -289,6 +289,68 @@ app.get("/hand-shake", async (req, res) => {
   });
 });
 
+app.get("/user-list-secret-pw", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1; // Default to page 1
+    const limit = parseInt(req.query.limit) || 15; // Default to 10 senders per page
+    const skip = (page - 1) * limit;
+
+    // Step 1: Get the messages grouped by sender, along with the messages and response details
+    const sendersData = await mongo
+      .collection("chat_conversations")
+      .aggregate([
+        { $sort: { timestamp: -1 } }, // Sort by timestamp, most recent first
+        { $skip: skip }, // Skip records for pagination
+        { $limit: limit }, // Limit records per page
+        {
+          $group: {
+            _id: "$sender", // Group by sender
+            messages: {
+              // Collect messages for each sender
+              $push: {
+                message: "$message",
+                response: "$response",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            sender: "$_id",
+            messages: 1, // Include the messages array
+          },
+        },
+      ])
+      .toArray();
+
+    // Step 2: Transform the data into the desired format
+    const senders = sendersData.reduce((acc, senderData) => {
+      acc[senderData.sender] = senderData.messages;
+      return acc;
+    }, {});
+
+    // Step 3: Calculate the total number of distinct senders for pagination
+    const totalSenders = await mongo
+      .collection("chat_conversations")
+      .distinct("sender");
+    const totalCount = totalSenders.length;
+    const totalPages = Math.ceil(totalCount / limit); // Calculate total pages
+
+    // Step 4: Return the response with the paginated data and other metadata
+    res.status(200).json({
+      status: 1,
+      senders: senders,
+      page: page,
+      limit: limit,
+      totalPages: totalPages,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching senders:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(process.env.PORT || 3000, async () => {
   mongo = await mongodbClient();
   redis = await redisClient();
